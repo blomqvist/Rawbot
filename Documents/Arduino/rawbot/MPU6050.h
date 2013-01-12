@@ -1,0 +1,39 @@
+#ifndef _MPU6050_H_
+#define _MPU6050_H_
+
+#define MPU6050_WHO_AM_I     0x75  
+#define MPU6050_I2C_ADDRESS  0x68  //The I2C default address for MPU-6050
+#define MPU6050_GYRO_CONFIG  0x1B
+#define MPU6050_ACCEL_CONFIG 0x1C
+
+#define MPU6050_GYRO_FS_250 0x00
+#define MPU6050_ACCEL_FS_2 0x00
+#define MPU6050_CLOCK_PLL_XGYRO 0x01
+
+
+#define MPU6050_PWR_MGMT             0x6B
+#define MPU6050_PWR_DEVICE_RESET_BIT 7
+#define MPU6050_PWR_SLEEP_BIT        6
+#define MPU6050_PWR_CYCLE_BIT        5
+#define MPU6050_PWR_TEMP_DIS_BIT     3
+#define MPU6050_PWR_CLKSEL_BIT       2
+#define MPU6050_PWR_CLKSEL_LENGTH    3
+
+#define MPU6050_TMP_AR_HIGH 0x41  // Temperature registers [15..8]
+#define MPU6050_TMP_AR_LOW  0x42  // Temperature registers [7..0]
+
+#define MPU6050_XACC_AR_HIGH 0x3B
+#define MPU6050_XACC_AR_LOW  0x3C
+#define MPU6050_YACC_AR_HIGH 0x3D
+#define MPU6050_YACC_AR_LOW  0x3E
+#define MPU6050_ZACC_AR_HIGH 0x3F
+#define MPU6050_ZACC_AR_LOW  0x40
+
+#define MPU6050_XGYR_AR_HIGH 0x43
+#define MPU6050_XGYR_AR_LOW  0x44
+#define MPU6050_YGYR_AR_HIGH 0x45
+#define MPU6050_YGYR_AR_LOW  0x46
+#define MPU6050_ZGYR_AR_HIGH 0x47
+#define MPU6050_ZGYR_AR_LOW  0x48
+
+#endif
