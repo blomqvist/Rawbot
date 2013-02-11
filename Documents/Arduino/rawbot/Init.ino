@@ -5,15 +5,7 @@ void setupLCD()
    * */
   pinMode(23, OUTPUT);
   digitalWrite(23, LOW);
-  pinMode(pinLCDR,   OUTPUT);
-  pinMode(pinLCDG, OUTPUT);
-  pinMode(pinLCDB,  OUTPUT);
-	//r_pwm = r_pwm = b_pwm = 0;
-
-  analogWrite(pinLCDR, 63);
-  analogWrite(pinLCDG, 0);
-  analogWrite(pinLCDB, 127);
-
+  
   lcd.begin(16, 2);
 }
 
@@ -67,36 +59,84 @@ void setupTemperature()
 void calibrate()
 {
   float gyro_x;
-  float angle;
+  float angle, startAngle;
 
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Calibrating");
   lcd.setCursor(0,1);
- 
+  
+  /* read out the angle before calibrating, 
+   * to use as an input to the calibration. 
+   */
+  //to avoid interference, read a few values
+  for (int i = 0; i < 5; i++)
+  {
+    angle += readAngle();  
+  }
+  if(angle/5 < 20 && angle/5 > -20)
+  {
+    startAngle = 0; //assume upright position
+  }
+  else if(angle/5 >= 20)
+  {
+    startAngle = 90; //assume front down 
+  }
+  else if(angle/5 <= -20)
+  {
+    startAngle = -90; //assume back down  
+  }
+  else
+  {
+    startAngle = 0; //shouldn't happen  
+  }
+  kalman.SetStartAngle(startAngle);
+  kalman.SetFrequency(loopTime);
+   
   for (int i = 0; i < CALIB_SAMPLES; i++)
   {
     gyro_x = readRotation();
-    KALMAN_x_bias = KALMAN_x_bias + gyro_x;
+    //KALMAN_x_bias = KALMAN_x_bias + gyro_x;
+    kalman.K_bias += gyro_x;
     delay(10);
     if(i % (CALIB_SAMPLES/5) == 0)
     {
       lcd.print(".");
     }
   }
-  KALMAN_x_bias=(-KALMAN_x_bias/CALIB_SAMPLES)*PI/180;  
-  
+  //KALMAN_x_bias=(-KALMAN_x_bias/CALIB_SAMPLES)*PI/180;  
+  kalman.K_bias = (-kalman.K_bias / CALIB_SAMPLES) * PI/180;
+    
   /* Run Kalman filter to get good values */
   for (int i = 0; i < CALIB_SAMPLES; i++)
   {
     angle = readAngle();
     gyro_x = readRotation();
-    kalmanCalculate(angle, gyro_x, float(latestLoop));
+    //kalmanCalculate(angle, gyro_x, float(latestLoop));
+    kalman.Kalkulate(angle, gyro_x);
     if(i % (CALIB_SAMPLES/5) == 0)
     {
       lcd.print(".");
     }
   }
+}
+
+void setupMotorShield()
+{
+  pinMode(M1_DIRA, OUTPUT);
+  pinMode(M1_DIRB, OUTPUT);
+  pinMode(M2_DIRA, OUTPUT);
+  pinMode(M2_DIRB, OUTPUT);
+  pinMode(M1_PWM, OUTPUT);
+  pinMode(M2_PWM, OUTPUT);
+  
+  digitalWrite(M1_DIRA, LOW);
+  digitalWrite(M1_DIRB, LOW);
+  digitalWrite(M2_DIRA, LOW);
+  digitalWrite(M2_DIRB, LOW);
+  
+  analogWrite(M1_PWM, 0);
+  analogWrite(M2_PWM, 0);
 }
   
 
