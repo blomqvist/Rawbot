@@ -11,6 +11,7 @@ class PID
         void  SetWantedAngle(float wantedAngle);
         float Calculate_original(float e);
         float Calculate_wiki(float e);
+	void  GetPidConstants(float& KP, float& KI, float& KD);
     private:
         float _KP, _KI, _KD;
         float _wantedAngle;

@@ -138,5 +138,9 @@ void setupMotorShield()
   analogWrite(M1_PWM, 0);
   analogWrite(M2_PWM, 0);
 }
-  
+
+void serialInit(int baud_speed)
+{
+  Serial.begin(baud_speed);
+}
 

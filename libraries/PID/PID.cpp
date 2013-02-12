@@ -42,10 +42,17 @@ float PID::Calculate_original(float e)
 float PID::Calculate_wiki(float e)
 {
     float error = _wantedAngle - e;
-    _lastIntegral = constrain(error * _dt, -_integrationLimit, _integrationLimit); // skippar +=
+    _lastIntegral += error * _dt;
     float derivative = (error - _lastError_w)/_dt; 
     float u = _KP * error + _KI * _lastIntegral + _KD * derivative;
     _lastError_w = error;
 
     return u;
+}
+
+void PID::GetPidConstants(float& KP, float& KI, float& KD)
+{
+  KP = _KP;
+  KI = _KI;
+  KD = _KD;
 }
