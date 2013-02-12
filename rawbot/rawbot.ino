@@ -17,7 +17,7 @@ const int CALIB_SAMPLES = 200;
 const int GYRO_SENSITIVITY = 131;
 
 
-int _w =25; // PWM multiplier
+int _w = 15; // PWM multiplier
 
 enum frequency
 {
@@ -35,7 +35,7 @@ enum frequency
   HZ_25   = 40
   
 };
-const int loopTime = HZ_167;
+const int loopTime = HZ_100;
 int latestLoop = loopTime, latestTime = loopTime;
 unsigned long startTime = 0;
 
@@ -51,7 +51,7 @@ float temperature;
 LiquidCrystal lcd(22, 24, 25, 26, 27, 28);
 LCDBackground lcdB(11, 5, 3);
 
-PID pid(3, 1, 0, 0, loopTime); // 7, 2, 8
+PID pid(0, 0, 0, 0, loopTime); // 7, 2, 8
 
 Kalman kalman;
 
@@ -119,6 +119,7 @@ void loop()
   {
     shortLoop = 0;
     lcdB.Tick();
+    readFromSerial(_p, _i, _d, _w);
   }
   
   //once per sec
@@ -133,8 +134,8 @@ void loop()
      * Read PID from Serial
      **/
     
-    pid.GetPidConstants(_p, _i, _d);
-    readFromSerial(_p, _i, _d, _w);
+    //pid.GetPidConstants(_p, _i, _d);
+    //readFromSerial(_p, _i, _d, _w);
         
     pid.SetPidConstants(_p, _i, _d);
     pid.GetPidConstants(_p, _i, _d);
@@ -155,9 +156,8 @@ void loop()
     lcd.print(_d);
     lcd.print(" pwm: ");
     lcd.print(((int)u_o > 0) ? (_w + (int)u_o) : ((-_w) + (int)u_o));
-    lcd.print(_w + (int)u_o);
    
-    Serial.print("p=");
+    /*Serial.print("p=");
     Serial.print(_p);
     Serial.print(",i=");
     Serial.print(_i);
@@ -170,7 +170,7 @@ void loop()
     Serial.print(",o=");
     Serial.print(u_o);
     Serial.print(",w=");
-    Serial.println(abs((int)u_o));
+    Serial.println(abs((int)u_o));*/
 
     // End of debug
     /*

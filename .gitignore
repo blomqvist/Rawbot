@@ -4,3 +4,7 @@
 *.h~
 
 *.cpp~
+
+*.cpp#
+
+libraries/PID/.#PID.cpp
