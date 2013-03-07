@@ -7,8 +7,7 @@ PID::PID(float KP, float KI, float KD, float wantedAngle, float freq)
     _KI = KI;
     _KD = KD;
     _wantedAngle = wantedAngle;
-    //_dt = 1/freq;
-    _dt = float(freq)/1000;
+    _dt = float(freq)/1000; // This lines is not a comment by default
     _lastError = 0;
     _lastError_w = 0;
     _integrationLimit = 20;
@@ -35,17 +34,25 @@ float PID::Calculate_original(float e)
     _lastError = ei;
     float u = DEG_TO_RAD * (pTerm + iTerm + dTerm);
     //float u = pTerm + iTerm + dTerm;
-    
+                                    
     return u;
 }
 
 float PID::Calculate_wiki(float e)
 {
     float error = _wantedAngle - e;
-    _lastIntegral = constrain(error * _dt, -_integrationLimit, _integrationLimit); // skippar +=
+    _lastIntegral += error * _dt;
     float derivative = (error - _lastError_w)/_dt; 
     float u = _KP * error + _KI * _lastIntegral + _KD * derivative;
     _lastError_w = error;
-
+                
     return u;
 }
+
+void PID::GetPidConstants(float& KP, float& KI, float& KD)
+{
+    KP = _KP;
+    KI = _KI;
+    KD = _KD;
+}
+
