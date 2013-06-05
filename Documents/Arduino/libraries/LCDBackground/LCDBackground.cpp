@@ -68,6 +68,19 @@ void LCDBackground::Tick()
     LCDWrite(R, G, B);
 }
 
+void LCDBackground::LCDStop()
+{
+    static bool red = true;
+    int G = 0, B = 0;
+
+    if(red)
+    {
+        G = 255;
+        B = 255;
+    }
+    red = !red;
+    LCDWrite(255, G, B);
+}
 
 void LCDBackground::LCDWrite(const int R, const int G, const int B)
 {

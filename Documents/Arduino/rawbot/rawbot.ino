@@ -15,9 +15,7 @@ const int M1_PWM  = 9;
 const int M2_PWM  = 10;
 const int CALIB_SAMPLES = 200;
 const int GYRO_SENSITIVITY = 131;
-
-
-int _w = 15; // PWM multiplier
+const float WANTED_ANGLE = 0.9; // 11,6 262,5 0,22 PID
 
 enum frequency
 {
@@ -38,6 +36,7 @@ enum frequency
 const int loopTime = HZ_100;
 int latestLoop = loopTime, latestTime = loopTime;
 unsigned long startTime = 0;
+boolean stopped = false;
 
 /* temperature */
 float temperature;
@@ -51,22 +50,19 @@ float temperature;
 LiquidCrystal lcd(22, 24, 25, 26, 27, 28);
 LCDBackground lcdB(11, 5, 3);
 
-PID pid(0, 0, 0, 0, loopTime); // 7, 2, 8
+PID pid(0, 0, 0, WANTED_ANGLE, loopTime); // 7, 2, 8
 
 Kalman kalman;
-
-int PWM_ADD = 0;
 
 void setup() 
 {
   pinMode(53, OUTPUT);
-  pinMode(51, OUTPUT);
-  digitalWrite(51, HIGH);  
   
   setupLCD();
   Wire.begin();
   lcd.print(".");
   setupMotorShield();
+  stop();
   lcd.print(".");
   setupMPU();
   lcd.print(".");
@@ -80,7 +76,7 @@ void setup()
   lcd.print("Done calibrating");
   lcd.setCursor(0,1);
   lcd.print("Starting in ");
-  for(int i = 3; i > 0; i--)
+  for(int i = 1; i > 0; i--)
   {
     lcd.setCursor(12, 1);    
     lcd.print(i);
@@ -97,29 +93,41 @@ void loop()
   static float gyro_y;
   static float k_angle;
   static float u_o, u_w;
-  static float _p, _i, _d;
+  static float _p = 14, _i = 100, _d = 1, _w = 1;
   
   angle = readAngle();
   gyro_y = readRotation();
+  
+  //fall angle seems to be -0.3, we'll compensate
+  //gyro_y += 0.35;
+  
   k_angle = kalman.Kalkulate(angle, gyro_y);
   //u_o = pid.Calculate_original(k_angle);
   u_o = pid.Calculate_wiki(k_angle);
   
-  /*if(k_angle > 15 || k_angle < -15)
+  if(k_angle > 50 || k_angle < -50)
   {
-    stop();  
+    stop();
+    stopped = true;  
   }
   else
-  {*/
-    drive(u_o);
-  //}
+  {
+    drive(u_o, _w);
+    stopped = false;
+  }
   
   //10 times per sec
   if(shortLoop == 100/shortLoop)
   {
     shortLoop = 0;
-    lcdB.Tick();
-    readFromSerial(_p, _i, _d, _w);
+    if(!stopped)
+    {
+      lcdB.Tick();
+    }
+    if(readFromSerial(_p, _i, _d, _w))
+    {
+      pid.SetPidConstants(_p, _i, _d);  
+    }
   }
   
   //once per sec
@@ -130,38 +138,36 @@ void loop()
     longLoop = 0;
     temperature = getTemperature();
     
-    /**
-     * Read PID from Serial
-     **/
-    
-    //pid.GetPidConstants(_p, _i, _d);
-    //readFromSerial(_p, _i, _d, _w);
-        
-    pid.SetPidConstants(_p, _i, _d);
-    pid.GetPidConstants(_p, _i, _d);
-    
-    /**
-     * End read from PID
-     **/
+    if(stopped)
+    {
+      lcdB.LCDStop();  
+    }        
     
     // Debug follows
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print(_p);
-    lcd.print(" ");
-    lcd.print(_i);
-    lcd.print(" ");
-    lcd.print(_d);
-    lcd.setCursor(0, 1);
-    //lcd.print("pwm: ");
-    //lcd.print(((int)u_o > 0) ? (_w + (int)u_o) : ((-_w) + (int)u_o));
-    lcd.print("");
-    lcd.print(gyro_y);
-    lcd.print(" ");
-    lcd.print(angle);
-    lcd.print(" ");
-    lcd.print(k_angle);
-    
+    if(internalLongLoop % 2 == 0)
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(_p);
+      lcd.print(" ");
+      lcd.print(_i);
+      lcd.print(" ");
+      lcd.print(_d);      
+    }
+    else
+    {
+      //lcd.print("pwm: ");
+      //lcd.print(((int)u_o > 0) ? (_w + (int)u_o) : ((-_w) + (int)u_o));
+      lcd.setCursor(0, 1);
+      lcd.print(pid.GetWantedAngle());
+      /*lcd.print("");
+      lcd.print(gyro_y);
+      lcd.print(" ");
+      lcd.print(angle);
+      lcd.print(" ");
+      lcd.print(k_angle);
+      */
+    }
     /*should only be done every 10th time
     * ie active 1 second and 
     * inactive 9 seconds
@@ -182,9 +188,11 @@ void loop()
   loopControl();
 }
 
-void drive(float u_o)
+void drive(float u_o, float w)
 {
-  int pwm = (int)u_o;
+  static int debug_i = 0;
+  
+  float pwm = u_o;
   
   //set direction
   if(pwm > 0)
@@ -202,26 +210,18 @@ void drive(float u_o)
     digitalWrite(M2_DIRB, HIGH);
   }
   
+  pwm *= w;
+  pwm = min(abs(pwm), 245);
+  pwm += 10;
   
-  
-  if (abs(pwm) > 0)
+  if(debug_i++ == 100)
   {
-    pwm = _w + abs(pwm);
-  }
-  else
-  {
-    pwm = 0;
-  }
-  
-  //pwm = (_w/abs(pwm)) + abs(pwm); // _w == PWM offset
-  
-  if(pwm > 100)
-  {
-    pwm = 100; 
+    debug_i = 0;
+    Serial.println(pwm);  
   }
   
-  analogWrite(M1_PWM, pwm);
-  analogWrite(M2_PWM, pwm);
+  analogWrite(M1_PWM, (int)pwm);
+  analogWrite(M2_PWM, (int)pwm);
 }
 
 void stop()
@@ -287,48 +287,71 @@ void loopControl()
   startTime = millis();
 }
 
-void readFromSerial (float& p, float& i, float& d, int& w)
+boolean readFromSerial(float& p, float& i, float& d, float& w)
 {
-  char _in; // char to read
-  int _times = 0;
-  int read_to = 'p'; // which int to read in to
-  if (Serial.available() > 0)
+  char _tempin[11]; // char to read
+  unsigned char _in[11];
+  unsigned int _p = 0, _i = 0, _d = 0, _w = 0;
+  int mode, drive;
+  boolean b = false;
+  
+  if(Serial.available() > 0)
   {
-    /**
-     * Reset before recieving
-     * Should not be necessary since we multiply by 0 the first time
-     * we assign (p = p * _times + ...)
-     **/
-    //p = 0;
-    //i = 0;
-    //d = 0;
-    while ((_in = Serial.read()) != '\n')
+    int nrRead = Serial.readBytes(_tempin, sizeof(_tempin));
+    if(nrRead < sizeof(_tempin))
     {
-      if (_in != ',')
+      Serial.print("_tempin too small ");
+      Serial.print(nrRead);
+      Serial.print(" ");
+      Serial.println((char*)_tempin);
+      return false;  
+    }
+  
+    for(int i = 0; i < sizeof(_in); i++)
+    {
+      _in[i] = (unsigned char)(_tempin[i]);  
+    }
+  
+    mode  = (int)_in[0];    
+    
+    if(mode == 4) //DRIVE
+    {
+      drive = (unsigned int)((_in[9] << 8) | _in[10]);  
+      Serial.println(drive);
+      
+      if(drive == 1) //UP
       {
-        if (read_to == 'p')      p = p * _times + ((int)_in - 48);
-        else if (read_to == 'i') i = i * _times + ((int)_in - 48);
-        else if (read_to == 'd') d = d * _times + ((int)_in - 48);
-        else                     w = w * _times + ((int)_in - 48);
-        _times = 10;
+        pid.SetWantedAngle(pid.GetWantedAngle() + 0.05);  
       }
-      else
+      else if(drive == 2) //DOWN
       {
-        if      (read_to == 'p') read_to = 'i';
-        else if (read_to == 'i') read_to = 'd';
-        else if (read_to == 'd') read_to = 'w';
-        else                     read_to = 'p';
-        _times = 0;
+        pid.SetWantedAngle(pid.GetWantedAngle() - 0.05);  
+      }
+      else if(drive == 3) //RIGHT
+      {
+        
+      }
+      else if(drive == 4) //LEFT
+      {
+        
       }
     }
-    p = p / 100;
-    i = i / 100;
-    d = d / 100;
-    p = p == 0.01 ? 0 : p;    
-    i = i == 0.01 ? 0 : i;    
-    d = d == 0.01 ? 0 : d;    
+    else
+    {
+      _p    = (unsigned int)((_in[1] << 8) | _in[2]);
+      _i    = (unsigned int)((_in[3] << 8) | _in[4]);
+      _d    = (unsigned int)((_in[5] << 8) | _in[6]);      
+      _w    = (unsigned int)((_in[7] << 8) | _in[8]);  
+      
+      p = (float)_p / 10;
+      i = (float)_i / 10;
+      d = (float)_d / 10;
+      w = (float)_w / 10;    
+      
+      b = true;
+    }    
   }
   
-  return;
+  return b;
 }
 

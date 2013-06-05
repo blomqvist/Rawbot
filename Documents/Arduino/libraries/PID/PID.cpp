@@ -25,6 +25,11 @@ void PID::SetWantedAngle(float wantedAngle)
     _wantedAngle = wantedAngle;
 }
 
+float PID::GetWantedAngle()
+{
+    return _wantedAngle;
+}
+
 float PID::Calculate_original(float e)
 {
     float ei = e + _wantedAngle;
@@ -45,6 +50,7 @@ float PID::Calculate_wiki(float e)
     float derivative = (error - _lastError_w)/_dt; 
     float u = _KP * error + _KI * _lastIntegral + _KD * derivative;
     _lastError_w = error;
+    //_lastIntegral = constrain(_lastIntegral, -_integrationLimit, _integrationLimit);
                 
     return u;
 }

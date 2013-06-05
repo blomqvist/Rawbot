@@ -9,6 +9,7 @@ class PID
         PID(float KP, float KI, float KD, float wantedAnglei, float freq);
         void  SetPidConstants(float KP, float KI, float KD);
         void  SetWantedAngle(float wantedAngle);
+        float GetWantedAngle();
         float Calculate_original(float e);
         float Calculate_wiki(float e);
         void GetPidConstants(float& KP, float& KI, float& KD);

@@ -8,6 +8,7 @@ class LCDBackground
     public:
         LCDBackground(const int pinR, const int pinG, const int pinB);
         void Tick();
+        void LCDStop();
     private:
         void LCDWrite(const int R, const int G, const int B);
         uint8_t _pinR, _pinG, _pinB;
