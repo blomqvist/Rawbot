@@ -17,17 +17,7 @@ const int DIG_3 = 6;
 const int DIG_4 = 5;
 
 const int LAMP_1 = 12;
-
-/*  if (value) {
-  PORTD |= (1<<7);
-} else {
-  PORTD &= ~(1<<7);
-}
-*/
-/*const byte DIG_1 = B00000001;
-const byte DIG_2 = B10000000;
-const byte DIG_3 = B01000000;
-const byte DIG_4 = B00100000;*/
+const int LAMP_2 = 13;
 
 const byte LED_A  = B00000001;
 const byte LED_B  = B00000100;
@@ -100,9 +90,9 @@ void setup()
   digitalWrite(NES_CLOCK,HIGH);
   
   pinMode(LAMP_1, OUTPUT);
-  pinMode(13, OUTPUT);
+  pinMode(LAMP_2, OUTPUT);
   digitalWrite(LAMP_1, LOW);
-  digitalWrite(13, HIGH);
+  digitalWrite(LAMP_2, LOW);
   
   Serial.begin(9600);
   
@@ -144,13 +134,16 @@ ISR(TIMER1_COMPA_vect)
   static int blink = 0;
   static Modes oldMode = mode;
   
+  /*
+    Will ligt a LED if the interrupt routine was interrupted...
+    */
   if(!finished)
   {
     PORTB |= (1 << (LAMP_1 - 8));  
   }
   finished = false;
   
-  if(blink == 100 || mode != oldMode)
+  if((blink == 25 && digit == 0) || mode != oldMode)
   {
     blink = 0;
     if(oldMode != mode)
@@ -174,16 +167,14 @@ ISR(TIMER1_COMPA_vect)
       digits[mode] ^= LED_DP;
     }
   }
-  blink++;
+  if(digit == 0)
+    blink++;
   
   PORTB |= (1 << (DIG_1 - 8));
   PORTD |= (1 << DIG_2);
   PORTD |= (1 << DIG_3);
   PORTD |= (1 << DIG_4);
-/*  digitalWrite(DIG_1, HIGH);
-  digitalWrite(DIG_2, HIGH);
-  digitalWrite(DIG_3, HIGH);
-  digitalWrite(DIG_4, HIGH);*/
+
   registerWrite(0);
   
   switch(digit)
@@ -191,7 +182,6 @@ ISR(TIMER1_COMPA_vect)
     case 0:
     {
       PORTB &= ~(1 << (DIG_1 - 8));
-      //digitalWrite(DIG_1, LOW);
       registerWrite(digits[digit]);
       digit++;
       break;
@@ -199,7 +189,6 @@ ISR(TIMER1_COMPA_vect)
     case 1:
     {
       PORTD &= ~(1 << DIG_2);
-      //digitalWrite(DIG_2, LOW);
       registerWrite(digits[digit]);
       digit++;
       break;
@@ -207,7 +196,6 @@ ISR(TIMER1_COMPA_vect)
     case 2:
     {
       PORTD &= ~(1 << DIG_3);
-      //digitalWrite(DIG_3, LOW);
       registerWrite(digits[digit]);
       digit++;
       break;
@@ -215,7 +203,6 @@ ISR(TIMER1_COMPA_vect)
     case 3:
     {
       PORTD &= ~(1 << DIG_4);
-      //digitalWrite(DIG_4, LOW);
       registerWrite(digits[digit]);
       digit = 0;
       break;  
@@ -391,9 +378,12 @@ void sendData()
 void display()
 {
   int value = values[mode];
+  boolean _DP = false;
   
   if(mode != DRIVE)
   {
+    _DP = digits[mode] & LED_DP;
+    
     if(value > 999)
     {
       int temp = value/1000;
@@ -425,14 +415,18 @@ void display()
       temp %= 10;
       digits[3] = digit[temp];
     }
-    else digits[3] = digit[0];  
+    else digits[3] = digit[0];
+  
+    digits[mode] |= _DP;  
   }
   else
   {
-    digits[0] = LED_E | LED_F | LED_G; 
-    digits[1] = LED_G;
-    digits[2] = LED_G;
-    digits[3] = LED_B | LED_C | LED_G; 
+    _DP = digits[0] & LED_DP;
+    
+    digits[0] = LED_E | LED_F | LED_G | (digits[0] & LED_DP); 
+    digits[1] = LED_G | (digits[0] & LED_DP); 
+    digits[2] = LED_G | (digits[0] & LED_DP); 
+    digits[3] = LED_B | LED_C | LED_G | (digits[0] & LED_DP); 
   }
 }
 
@@ -440,10 +434,8 @@ void registerWrite(byte value)
 {
   noInterrupts();
   PORTB &= ~(1 << (SR_LATCH-8));
-  //digitalWrite(SR_LATCH, LOW); //9
   shiftOut(SR_DATA, SR_CLOCK, LSBFIRST, value);
   PORTB |= (1 << (SR_LATCH-8));
-  //digitalWrite(SR_LATCH, HIGH);
   interrupts();
 }
 
@@ -468,10 +460,8 @@ byte buttons(void)
 void strobe(void)
 {
   PORTD |= (1 << NES_LATCH);
-  //digitalWrite(NES_LATCH, HIGH);
   delayMicroseconds(12);
   PORTD &= ~(1 << NES_LATCH);
-  //digitalWrite(NES_LATCH, LOW);
 }
 
 byte shiftin(void)
@@ -479,10 +469,8 @@ byte shiftin(void)
   byte ret = digitalRead(NES_DATA);
   delayMicroseconds(12);
   PORTD |= (1 << NES_CLOCK);
-  //digitalWrite(NES_CLOCK, HIGH);
   delayMicroseconds(12);
   PORTD &= ~(1 << NES_CLOCK);
-  //digitalWrite(NES_CLOCK, LOW);
   return ret;
 }
 
